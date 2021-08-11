@@ -69,8 +69,45 @@ RSpec.describe 'Manage > Users', type: :system do
 
         expect(page).to have_css('table.user-list td', text: 'NewTestUserFirstName')
       end
-
     end
 
+    describe 'select an Organization' do
+      before do
+        create(:organization, name: 'Example Inc.', active: true)
+        create(:organization, name: 'Inactive Inc.', active: false)
+      end
+
+      it 'check for inactive Organizations in Organization selection' do
+        visit '#manage/users'
+
+        within(:active_content) do
+          find('[data-type=new]').click
+
+          find('[name=organization_id] ~ .searchableSelect-main').fill_in with: '**'
+          expect(page).to have_css('ul.js-optionsList > li.js-option', minimum: 2)
+          expect(page).to have_css('ul.js-optionsList > li.js-option .is-inactive', count: 1)
+        end
+      end
+    end
+  end
+
+  describe 'show/unlock a user', authenticated_as: -> { user } do
+    let(:user) { create(:admin) }
+    let!(:locked_user) { create(:user, login_failed: 6) }
+
+    it 'check marked locked user and execute unlock action' do
+      visit '#manage/users'
+
+      within(:active_content) do
+        row = find("tr[data-id=\"#{locked_user.id}\"]")
+
+        expect(row).to have_css('.icon-lock')
+
+        row.find('.js-action').click
+        row.find('li.unlock').click
+
+        expect(row).to have_no_css('.icon-lock')
+      end
+    end
   end
 end

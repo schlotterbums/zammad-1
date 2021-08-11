@@ -208,9 +208,13 @@ RSpec.describe 'Ticket zoom', type: :system do
 
     context 'to inbound phone call', current_user_id: -> { agent.id }, authenticated_as: -> { agent } do
       let(:agent)    { create(:agent, groups: [Group.first]) }
-      let(:customer) { create(:agent) }
+      let(:customer) { create(:customer) }
       let(:ticket)   { create(:ticket, customer: customer, group: agent.groups.first) }
       let!(:article) { create(:ticket_article, :inbound_phone, ticket: ticket) }
+
+      before do
+        create(:customer, active: false)
+      end
 
       it 'goes to customer email' do
         visit "ticket/zoom/#{ticket.id}"
@@ -225,11 +229,28 @@ RSpec.describe 'Ticket zoom', type: :system do
           end
         end
       end
+
+      it 'check active and inactive user in TO-field' do
+        visit "ticket/zoom/#{ticket.id}"
+
+        within :active_ticket_article, article do
+          click '.js-ArticleAction[data-type=emailReply]'
+        end
+
+        within :active_content do
+          within '.article-new' do
+            find('[name=to] ~ .ui-autocomplete-input').fill_in with: '**'
+          end
+        end
+
+        expect(page).to have_css('ul.ui-autocomplete > li.ui-menu-item', minimum: 2)
+        expect(page).to have_css('ul.ui-autocomplete > li.ui-menu-item.is-inactive', count: 1)
+      end
     end
 
     context 'to outbound phone call', current_user_id: -> { agent.id }, authenticated_as: -> { agent } do
       let(:agent)    { create(:agent, groups: [Group.first]) }
-      let(:customer) { create(:agent) }
+      let(:customer) { create(:customer) }
       let(:ticket)   { create(:ticket, customer: customer, group: agent.groups.first) }
       let!(:article) { create(:ticket_article, :outbound_phone, ticket: ticket) }
 
@@ -1659,6 +1680,30 @@ RSpec.describe 'Ticket zoom', type: :system do
       visit "#ticket/zoom/#{ticket_open.id}"
       click '.user-tickets[data-type=closed]'
       expect(page).to have_text(ticket_closed.title, wait: 20)
+    end
+  end
+
+  context 'Sidebar - Organization' do
+    let(:organization) { create(:organization) }
+
+    context 'members section' do
+
+      let(:customers) { create_list(:customer, 50, organization: organization) }
+      let(:ticket) { create(:ticket, group: Group.find_by(name: 'Users'), customer: customers.first) }
+      let(:members) { organization.members.order(id: :asc) }
+
+      before do
+        visit "#ticket/zoom/#{ticket.id}"
+        click '.tabsSidebar-tab[data-tab=organization]'
+      end
+
+      it 'shows first 10 members and loads more on demand' do
+        expect(page).to have_text(members[9].fullname)
+        expect(page).to have_no_text(members[10].fullname)
+
+        click '.js-showMoreMembers'
+        expect(page).to have_text(members[10].fullname)
+      end
     end
   end
 end

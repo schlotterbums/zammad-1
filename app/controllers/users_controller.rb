@@ -3,7 +3,7 @@
 class UsersController < ApplicationController
   include ChecksUserAttributesByCurrentUserPermission
 
-  prepend_before_action -> { authorize! }, only: %i[import_example import_start search history]
+  prepend_before_action -> { authorize! }, only: %i[import_example import_start search history unlock]
   prepend_before_action :authentication_check, except: %i[create password_reset_send password_reset_verify image email_verify email_verify_send]
   prepend_before_action :authentication_check_only, only: %i[create]
 
@@ -217,11 +217,12 @@ class UsersController < ApplicationController
   #                   The requester has to be in the role 'Admin' or 'Agent' to
   #                   be able to search for User records.
   #
-  # @parameter        query            [String]                             The search query.
-  # @parameter        limit            [Integer]                            The limit of search results.
-  # @parameter        role_ids(multi)  [Array<String>]                      A list of Role identifiers to which the Users have to be allocated to.
-  # @parameter        group_ids(multi) [Hash<String=>String,Array<String>>] A list of Group identifiers to which the Users have to be allocated to.
-  # @parameter        full             [Boolean]                            Defines if the result should be
+  # @parameter        query             [String]                             The search query.
+  # @parameter        limit             [Integer]                            The limit of search results.
+  # @parameter        ids(multi)        [Array<Integer>]                     A list of User IDs which should be returned
+  # @parameter        role_ids(multi)   [Array<String>]                      A list of Role identifiers to which the Users have to be allocated to.
+  # @parameter        group_ids(multi)  [Hash<String=>String,Array<String>>] A list of Group identifiers to which the Users have to be allocated to.
+  # @parameter        full              [Boolean]                            Defines if the result should be
   #                                                                         true: { user_ids => [1,2,...], assets => {...} }
   #                                                                         or false: [{:id => user.id, :label => "firstname lastname <email>", :value => "firstname lastname <email>"},...].
   #
@@ -255,7 +256,7 @@ class UsersController < ApplicationController
       order_by:     params[:order_by],
       current_user: current_user,
     }
-    %i[role_ids group_ids permissions].each do |key|
+    %i[ids role_ids group_ids permissions].each do |key|
       next if params[key].blank?
 
       query_params[key] = params[key]
@@ -282,7 +283,7 @@ class UsersController < ApplicationController
           realname = "#{realname} <#{user.email}>"
         end
         a = if params[:term]
-              { id: user.id, label: realname, value: user.email }
+              { id: user.id, label: realname, value: user.email, inactive: !user.active }
             else
               { id: user.id, label: realname, value: realname }
             end
@@ -336,6 +337,24 @@ class UsersController < ApplicationController
 
     # get history of user
     render json: user.history_get(true)
+  end
+
+  # @path       [PUT] /users/unlock/{id}
+  #
+  # @summary          Unlocks the User record matching the identifier.
+  # @notes            The requester have 'admin.user' permissions to be able to unlock a user.
+  #
+  # @parameter        id(required) [Integer] The identifier matching the requested User record.
+  #
+  # @response_message 200 Unlocked User record.
+  # @response_message 403 Forbidden / Invalid session.
+  def unlock
+    user = User.find(params[:id])
+
+    user.with_lock do
+      user.update!(login_failed: 0)
+    end
+    render json: { message: 'ok' }, status: :ok
   end
 
 =begin

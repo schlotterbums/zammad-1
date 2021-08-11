@@ -1353,6 +1353,10 @@ td .icon-trash {
   //fill: hsl(240,1%,77%);
 }
 
+td .prefix-icon > .icon {
+  vertical-align: top;
+}
+
 .table-checkbox,
 .table-radio {
   padding: 0 !important;
@@ -1444,9 +1448,9 @@ td .icon-trash {
 
   input[type="checkbox"],
   input[type="radio"] {
-    pointer-events: none;
     position: absolute;
     opacity: 0;
+    cursor: pointer;
 
     &:disabled ~ .icon {
       opacity: 0.33;
@@ -4285,6 +4289,12 @@ footer {
 
     .navigation .nav-tab-name {
       text-align: start;
+
+
+      &.is-inactive {
+        text-decoration: line-through;
+        opacity: .73;
+      }
     }
 
     .tasks-navigation .nav-tab-icon .error {
@@ -4314,6 +4324,11 @@ footer {
   .nav-tab.nav-tab--search {
     height: 30px;
     padding-top: 9px;
+
+    &.is-inactive {
+      text-decoration: line-through;
+      opacity: .73;
+    }
   }
 
   .nav-tab-icon {
@@ -5353,6 +5368,11 @@ footer {
     border: none;
     background: none;
     padding: 21px 17px 4px;
+
+    .is-inactive {
+      text-decoration: line-through;
+      color: #ccc;
+    }
   }
 
   .popover-content {
@@ -5411,10 +5431,22 @@ footer {
     color: #a1a4a7;
   }
 
+  .popover .person {
+    &.is-inactive {
+      text-decoration: line-through;
+      color: #ccc;
+    }
+  }
+
   .popover .user-organization {
     @extend .u-textTruncate;
     margin-bottom: 8px;
     margin-top: -4px;
+
+    &.is-inactive {
+      text-decoration: line-through;
+      color: #ccc;
+    }
   }
 
   .popover-block {
@@ -5543,15 +5575,26 @@ footer {
   padding: 2px 0 0 50px;
   position: relative;
   min-height: 40px;
-  max-width: 192px;
+  padding-right: 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 192px;
 
   .avatar {
     position: absolute;
     left: 0;
     top: 0;
+  }
+
+  .user-popover.is-inactive {
+    text-decoration: line-through;
+    opacity: .73;
+  }
+
+  .btn.js-newTicket {
+    position: absolute;
+    right: 0;
   }
 }
 
@@ -7990,6 +8033,11 @@ footer {
     padding: 9px 15px;
     list-style-image: none;
 
+    &.is-inactive {
+      text-decoration: line-through;
+      opacity: .73;
+    }
+
     &:not(:first-child) {
       box-shadow: 0 1px rgba(255,255,255,.13) inset;
     }
@@ -8560,6 +8608,13 @@ footer {
   display: flex;
   align-items: center;
   @extend .u-clickable;
+
+  &.is-inactive {
+    .recipientList-name {
+      text-decoration: line-through;
+      opacity: .73;
+    }
+  }
 }
 
   .recipientList-entry .recipientList-iconSpacer {
@@ -8614,6 +8669,10 @@ footer {
 
   .recipientList-detail {
     opacity: 0.5;
+
+    &.is-inactive > span {
+      text-decoration: line-through;
+    }
   }
 
   .recipientList-icon.plus {
@@ -10347,6 +10406,11 @@ output {
 
     & + .icon {
       @include bidi-style(margin-left, 10px, margin-right, 0);
+    }
+
+    &.is-inactive {
+      opacity: .73;
+      text-decoration: line-through;
     }
   }
 

@@ -121,6 +121,9 @@ class App.User extends App.Model
       return true
     false
 
+  maxLoginFailedReached: ->
+    return @login_failed > (App.Config.get('password_max_login_failed') || 10)
+
   imageUrl: ->
     return if !@image
     # set image url
@@ -156,11 +159,18 @@ class App.User extends App.Model
     data
 
   searchResultAttributes: ->
+    classList = ['user', 'user-popover']
+    icon = 'user'
+
+    if @active is false
+      classList.push 'is-inactive'
+      icon = 'inactive-' + icon
+
     display: "#{@displayName()}"
     id:      @id
-    class:   'user user-popover'
+    class:   classList.join(' ')
     url:     @uiUrl()
-    icon:    'user'
+    icon:    icon
 
   activityMessage: (item) ->
     return if !item
