@@ -96,11 +96,11 @@ class AgentProfilePermissionsTest < TestCase
     )
     tasks_close_all
 
-    user_open_by_search(value: 'Test Master')
+    user_open_by_search(value: 'Test Admin')
 
     verify_task(
       data: {
-        title: 'Test Master Agent',
+        title: 'Test Admin Agent',
       }
     )
 
@@ -123,7 +123,7 @@ class AgentProfilePermissionsTest < TestCase
   def test_agent_to_edit_admin_ticket_user_details
     @browser = browser_instance
     login(
-      username: 'master@example.com',
+      username: 'admin@example.com',
       password: 'test',
       url:      browser_url,
     )
@@ -131,7 +131,7 @@ class AgentProfilePermissionsTest < TestCase
 
     ticket1 = ticket_create(
       data: {
-        customer: 'master',
+        customer: 'admin',
         group:    'Users',
         title:    'test_user_access_permissions - ticket 1',
         body:     'test_user_access_permissions - ticket 1',
@@ -336,7 +336,7 @@ class AgentProfilePermissionsTest < TestCase
 
     ticket1 = ticket_create(
       data: {
-        customer: 'master',
+        customer: 'admin',
         group:    'Users',
         title:    'test_user_access_permissions - ticket 4',
         body:     'test_user_access_permissions - ticket 4',

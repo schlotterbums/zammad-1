@@ -27,9 +27,9 @@ RSpec.describe 'System setup process', type: :system, set_up: false, authenticat
     expect(page).to have_css('.js-admin h2', text: 'Administrator Account')
 
     within('.js-admin') do
-      fill_in 'firstname',        with: 'Test Master'
+      fill_in 'firstname',        with: 'Test Admin'
       fill_in 'lastname',         with: 'Agent'
-      fill_in 'email',            with: 'master@example.com'
+      fill_in 'email',            with: 'admin@example.com'
       fill_in 'password',         with: 'TEst1234äöüß'
       fill_in 'password_confirm', with: 'TEst1234äöüß'
 
@@ -117,9 +117,9 @@ RSpec.describe 'System setup process', type: :system, set_up: false, authenticat
     click_on('Setup new System')
 
     within('.js-admin') do
-      fill_in 'firstname',        with: 'Test Master'
+      fill_in 'firstname',        with: 'Test Admin'
       fill_in 'lastname',         with: 'Agent'
-      fill_in 'email',            with: 'master@example.com'
+      fill_in 'email',            with: 'admin@example.com'
       fill_in 'password',         with: 'asd'
       fill_in 'password_confirm', with: 'asd'
 

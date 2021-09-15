@@ -450,7 +450,7 @@ class TwitterSync
     Rails.logger.debug { 'import tweet' }
 
     ticket = nil
-    Transaction.execute(reset_user_id: true) do
+    Transaction.execute(reset_user_id: true, context: 'twitter') do
 
       # check if parent exists
       user = to_user(tweet)
@@ -501,11 +501,9 @@ create a tweet or direct message from an article
 
       Rails.logger.debug { 'Create tweet from article...' }
 
-      # rubocop:disable Style/AsciiComments
       # workaround for https://github.com/sferik/twitter/issues/677
       # https://github.com/zammad/zammad/issues/2873 - unable to post
       # tweets with * - replace `*` with the wide-asterisk `＊`.
-      # rubocop:enable Style/AsciiComments
       article[:body].tr!('*', '＊') if article[:body].present?
       tweet = @client.update(
         article[:body],

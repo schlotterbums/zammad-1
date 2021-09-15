@@ -3,12 +3,13 @@
 class Organization < ApplicationModel
   include HasActivityStreamLog
   include ChecksClientNotification
+  include ChecksCoreWorkflow
   include ChecksLatestChangeObserved
   include HasHistory
   include HasSearchIndexBackend
   include CanCsvImport
   include ChecksHtmlSanitized
-  include HasObjectManagerAttributesValidation
+  include HasObjectManagerAttributes
   include HasTaskbars
 
   include Organization::Assets
@@ -64,7 +65,7 @@ class Organization < ApplicationModel
     User.where(organization_id: id).find_each do |user|
       user.update(organization_id: nil)
     end
-    Ticket.where(organization_id: id) do |ticket|
+    Ticket.where(organization_id: id).find_each do |ticket|
       ticket.update(organization_id: nil)
     end
   end

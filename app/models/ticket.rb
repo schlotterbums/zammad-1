@@ -4,6 +4,7 @@ class Ticket < ApplicationModel
   include CanBeImported
   include HasActivityStreamLog
   include ChecksClientNotification
+  include ChecksCoreWorkflow
   include ChecksLatestChangeObserved
   include CanCsvImport
   include ChecksHtmlSanitized
@@ -13,7 +14,7 @@ class Ticket < ApplicationModel
   include HasOnlineNotifications
   include HasKarmaActivityLog
   include HasLinks
-  include HasObjectManagerAttributesValidation
+  include HasObjectManagerAttributes
   include HasTaskbars
   include Ticket::CallsStatsTicketReopenLog
   include Ticket::EnqueuesUserTicketCounterJob
@@ -290,7 +291,7 @@ returns
     raise Exceptions::UnprocessableEntity, 'Can\'t merge ticket with it self!' if id == target_ticket.id
 
     # update articles
-    Transaction.execute do
+    Transaction.execute context: 'merge' do
 
       Ticket::Article.where(ticket_id: id).each(&:touch)
 
@@ -376,6 +377,26 @@ returns
 
       # touch new ticket (to broadcast change)
       target_ticket.touch # rubocop:disable Rails/SkipsModelValidations
+
+      EventBuffer.add('transaction', {
+                        object:     target_ticket.class.name,
+                        type:       'update.received_merge',
+                        data:       target_ticket,
+                        changes:    {},
+                        id:         target_ticket.id,
+                        user_id:    UserInfo.current_user_id,
+                        created_at: Time.zone.now,
+                      })
+
+      EventBuffer.add('transaction', {
+                        object:     self.class.name,
+                        type:       'update.merged_into',
+                        data:       self,
+                        changes:    {},
+                        id:         id,
+                        user_id:    UserInfo.current_user_id,
+                        created_at: Time.zone.now,
+                      })
     end
     true
   end
@@ -1284,9 +1305,7 @@ perform active triggers on ticket
           user_id = article.updated_by_id
         end
 
-        user = if user_id != 1
-                 User.lookup(id: user_id)
-               end
+        user = User.lookup(id: user_id)
 
         # verify is condition is matching
         ticket_count, tickets = Ticket.selectors(condition, limit: 1, execution_time: true, current_user: user, access: 'ignore')
@@ -1755,6 +1774,11 @@ result
     end
 
     original_article = objects[:article]
+
+    if ActiveModel::Type::Boolean.new.cast(value['include_attachments']) == true && original_article&.attachments.present?
+      original_article.clone_attachments('Ticket::Article', message.id, only_attached_attachments: true)
+    end
+
     if original_article&.should_clone_inline_attachments? # rubocop:disable Style/GuardClause
       original_article.clone_attachments('Ticket::Article', message.id, only_inline_attachments: true)
       original_article.should_clone_inline_attachments = false # cancel the temporary flag after cloning

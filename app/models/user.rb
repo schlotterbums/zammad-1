@@ -5,13 +5,14 @@ class User < ApplicationModel
   include CanBeImported
   include HasActivityStreamLog
   include ChecksClientNotification
+  include ChecksCoreWorkflow
   include HasHistory
   include HasSearchIndexBackend
   include CanCsvImport
   include ChecksHtmlSanitized
   include HasGroups
   include HasRoles
-  include HasObjectManagerAttributesValidation
+  include HasObjectManagerAttributes
   include ::HasTicketCreateScreenImpact
   include HasTaskbars
   include User::HasTicketCreateScreenImpact
@@ -216,11 +217,21 @@ returns
 
 =end
 
-  def out_of_office_agent
+  def out_of_office_agent(loop_user_ids: [])
     return if !out_of_office?
     return if out_of_office_replacement_id.blank?
 
-    User.find_by(id: out_of_office_replacement_id)
+    user = User.find_by(id: out_of_office_replacement_id)
+
+    # stop if users are occuring multiple times to prevent endless loops
+    return user if loop_user_ids.include?(out_of_office_replacement_id)
+
+    loop_user_ids |= [out_of_office_replacement_id]
+
+    ooo_agent = user.out_of_office_agent(loop_user_ids: loop_user_ids)
+    return ooo_agent if ooo_agent.present?
+
+    user
   end
 
 =begin
@@ -237,7 +248,19 @@ returns
 =end
 
   def out_of_office_agent_of
-    User.where(active: true, out_of_office: true, out_of_office_replacement_id: id).where('out_of_office_start_at <= ? AND out_of_office_end_at >= ?', Time.zone.today, Time.zone.today)
+    User.where(id: out_of_office_agent_of_recursive(user_id: id))
+  end
+
+  def out_of_office_agent_of_recursive(user_id:, result: [])
+    User.where(active: true, out_of_office: true, out_of_office_replacement_id: user_id).where('out_of_office_start_at <= ? AND out_of_office_end_at >= ?', Time.zone.today, Time.zone.today).each do |user|
+
+      # stop if users are occuring multiple times to prevent endless loops
+      break if result.include?(user.id)
+
+      result |= [user.id]
+      result |= out_of_office_agent_of_recursive(user_id: user.id, result: result)
+    end
+    result
   end
 
 =begin
@@ -288,54 +311,6 @@ returns
 
 =begin
 
-authenticate user
-
-  result = User.authenticate(username, password)
-
-returns
-
-  result = user_model # user model if authentication was successfully
-
-=end
-
-  def self.authenticate(username, password)
-
-    # do not authenticate with nothing
-    return if username.blank? || password.blank?
-
-    user = User.identify(username)
-    return if !user
-
-    return if !Auth.can_login?(user)
-
-    return user if Auth.valid?(user, password)
-
-    sleep 1
-    user.login_failed += 1
-    user.save!
-    nil
-  end
-
-=begin
-
-checks if a user has reached the maximum of failed login tries
-
-  user = User.find(123)
-  result = user.max_login_failed?
-
-returns
-
-  result = true | false
-
-=end
-
-  def max_login_failed?
-    max_login_failed = Setting.get('password_max_login_failed').to_i || 10
-    login_failed > max_login_failed
-  end
-
-=begin
-
 tries to find the matching instance by the given identifier. Currently email and login is supported.
 
   user = User.indentify('User123')
@@ -352,6 +327,8 @@ returns
 =end
 
   def self.identify(identifier)
+    return if identifier.blank?
+
     # try to find user based on login
     user = User.find_by(login: identifier.downcase)
     return user if user

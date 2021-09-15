@@ -122,7 +122,7 @@ class App.User extends App.Model
     false
 
   maxLoginFailedReached: ->
-    return @login_failed > (App.Config.get('password_max_login_failed') || 10)
+    return @login_failed > (parseInt(App.Config.get('password_max_login_failed')))
 
   imageUrl: ->
     return if !@image
@@ -359,6 +359,9 @@ class App.User extends App.Model
     return false if @organization_id is null
     return false if requester.organization_id is null
     @organization_id == requester.organization_id
+
+  lifetimeCustomerTicketsCount: ->
+    (@preferences.tickets_closed || 0) + (@preferences.tickets_open || 0)
 
   # Do NOT modify the return value of this method!
   # It is a direct reference to a value in the App.User.irecords object.

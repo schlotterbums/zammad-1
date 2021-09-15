@@ -2,11 +2,13 @@
 
 require 'rails_helper'
 
+require 'system/examples/core_workflow_examples'
+
 RSpec.describe 'Ticket zoom', type: :system do
 
   describe 'owner auto-assignment', authenticated_as: :authenticate do
     let!(:ticket) { create(:ticket, group: Group.find_by(name: 'Users'), state: Ticket::State.find_by(name: 'new')) }
-    let!(:session_user) { User.find_by(login: 'master@example.com') }
+    let!(:session_user) { User.find_by(login: 'admin@example.com') }
 
     context 'for agent disabled' do
       def authenticate
@@ -24,7 +26,7 @@ RSpec.describe 'Ticket zoom', type: :system do
           expect(page).to have_css('select[name=owner_id]')
           expect(page).to have_select('owner_id',
                                       selected: '-',
-                                      options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                      options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
         end
       end
     end
@@ -46,7 +48,7 @@ RSpec.describe 'Ticket zoom', type: :system do
             expect(page).to have_css('.content.active select[name=owner_id]')
             expect(page).to have_select('owner_id',
                                         selected: session_user.fullname,
-                                        options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                        options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
           end
         end
       end
@@ -61,7 +63,7 @@ RSpec.describe 'Ticket zoom', type: :system do
             expect(page).to have_css('select[name=owner_id]')
             expect(page).to have_select('owner_id',
                                         selected: '-',
-                                        options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                        options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
           end
         end
       end
@@ -76,7 +78,7 @@ RSpec.describe 'Ticket zoom', type: :system do
             expect(page).to have_css('select[name=owner_id]')
             expect(page).to have_select('owner_id',
                                         selected: '-',
-                                        options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                        options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
           end
         end
       end
@@ -91,7 +93,7 @@ RSpec.describe 'Ticket zoom', type: :system do
             expect(page).to have_css('select[name=owner_id]')
             expect(page).to have_select('owner_id',
                                         selected: '-',
-                                        options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                        options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
           end
         end
       end
@@ -106,7 +108,7 @@ RSpec.describe 'Ticket zoom', type: :system do
             expect(page).to have_css('select[name=owner_id]')
             expect(page).to have_select('owner_id',
                                         selected: '-',
-                                        options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                        options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
           end
         end
       end
@@ -121,7 +123,7 @@ RSpec.describe 'Ticket zoom', type: :system do
             expect(page).to have_css('select[name=owner_id]')
             expect(page).to have_select('owner_id',
                                         selected: session_user.fullname,
-                                        options:  ['-', 'Agent 1 Test', 'Test Master Agent'])
+                                        options:  ['-', 'Agent 1 Test', 'Test Admin Agent'])
           end
         end
       end
@@ -944,10 +946,9 @@ RSpec.describe 'Ticket zoom', type: :system do
       let(:user) { create(:customer) }
       let(:ticket) { create(:ticket, customer: user) }
 
-      it 'shows ticket state dropdown options in sorted order' do
+      it 'shows ticket state dropdown options in sorted translated alphabetically order' do
         visit "ticket/zoom/#{ticket.id}"
 
-        await_empty_ajax_queue
         expect(all('select[name=state_id] option').map(&:text)).to eq(%w[geschlossen neu offen])
       end
     end
@@ -959,7 +960,6 @@ RSpec.describe 'Ticket zoom', type: :system do
       it 'shows ticket state dropdown options in sorted order' do
         visit 'ticket/create'
 
-        await_empty_ajax_queue
         expect(all('select[name=state_id] option').map(&:text)).to eq ['-', 'geschlossen', 'neu', 'offen', 'warten auf Erinnerung', 'warten auf schliessen']
       end
     end
@@ -1433,77 +1433,85 @@ RSpec.describe 'Ticket zoom', type: :system do
   describe 'Article ID URL / link' do
     let(:ticket) { create(:ticket, group: Group.first) }
     let!(:article) { create(:'ticket/article', ticket: ticket) }
-    let(:url) { "#{Setting.get('http_type')}://#{Setting.get('fqdn')}/#ticket/zoom/#{ticket.id}/#{article.id}" }
 
     it 'shows Article direct link' do
-
       ensure_websocket do
         visit "ticket/zoom/#{ticket.id}"
+      end
 
-        within :active_ticket_article, article do
-          expect(page).to have_css(%(a[href="#{url}"]))
-        end
+      url = "#{Setting.get('http_type')}://#{Setting.get('fqdn')}/#ticket/zoom/#{ticket.id}/#{article.id}"
+
+      within :active_ticket_article, article do
+        expect(page).to have_css(%(a[href="#{url}"]))
       end
     end
 
     context 'when multiple Articles are present' do
-
       let(:article_count) { 20 }
-      let(:article_at_the_top) { ticket.articles.first }
-      let(:article_in_the_middle) { ticket.articles[ article_count / 2 ] }
-      let(:article_at_the_bottom) { ticket.articles.last }
+      let(:article_top) { ticket.articles.second }
+      let(:article_middle) { ticket.articles[ article_count / 2 ] }
+      let(:article_bottom) { ticket.articles.last }
 
       before do
         article_count.times do
           create(:'ticket/article', ticket: ticket, body: SecureRandom.uuid)
         end
+
+        visit "ticket/zoom/#{ticket.id}"
       end
 
-      def check_obscured(top: true, middle: true, bottom: true, scroll_y: 0)
-        expect(page).to have_text(ticket.title, wait: 10)
-        wait(5, interval: 0.2).until do
-          scroll_y != find('.ticketZoom').native.location.y
+      def wait_for_scroll
+        wait(5, interval: 0.2).until_constant do
+          find('.ticketZoom').native.location.y
         end
-        expect(page).to have_css("div#article-content-#{article_at_the_top.id}", obscured: top, wait: 10)
-        expect(page).to have_css("div#article-content-#{article_in_the_middle.id}", obscured: middle, wait: 10)
-        expect(page).to have_css("div#article-content-#{article_at_the_bottom.id}", obscured: bottom, wait: 10)
-        find('.ticketZoom').native.location.y
       end
 
-      it 'scrolls to given Article ID' do
-        ensure_websocket do
-          visit "ticket/zoom/#{ticket.id}"
-          y = check_obscured(bottom: false)
+      def check_shown(top: false, middle: false, bottom: false)
+        wait_for_scroll
 
-          # scroll to article in the middle of the page
-          visit "ticket/zoom/#{ticket.id}/#{article_in_the_middle.id}"
-          y = check_obscured(middle: false, scroll_y: y)
+        expect(page).to have_css("div#article-content-#{article_top.id} .richtext-content", obscured: !top)
+          .and(have_css("div#article-content-#{article_middle.id} .richtext-content", obscured: !middle, wait: 0))
+          .and(have_css("div#article-content-#{article_bottom.id} .richtext-content", obscured: !bottom, wait: 0))
+      end
 
-          # scroll to article at the top of the page
-          visit "ticket/zoom/#{ticket.id}/#{article_at_the_top.id}"
-          y = check_obscured(top: false, scroll_y: y)
+      it 'scrolls to top article ID' do
+        visit "ticket/zoom/#{ticket.id}/#{article_top.id}"
+        check_shown(top: true)
+      end
 
-          # scroll to article at the bottom of the page
-          visit "ticket/zoom/#{ticket.id}/#{article_at_the_bottom.id}"
-          check_obscured(bottom: false, scroll_y: y)
-        end
+      it 'scrolls to middle article ID' do
+        visit "ticket/zoom/#{ticket.id}/#{article_middle.id}"
+        check_shown(middle: true)
+      end
+
+      it 'scrolls to bottom article ID' do
+        visit "ticket/zoom/#{ticket.id}/#{article_top.id}"
+        wait_for_scroll
+
+        visit "ticket/zoom/#{ticket.id}/#{article_bottom.id}"
+        check_shown(bottom: true)
       end
     end
 
     context 'when long articles are present' do
       it 'will properly show the "See more" link if you switch between the ticket and the dashboard on new articles' do
         ensure_websocket do
+          # prerender ticket
           visit "ticket/zoom/#{ticket.id}"
 
+          # ticket tab becomes background
           visit 'dashboard'
-          expect(page).to have_css("a.js-dashboardMenuItem[data-key='Dashboard'].is-active", wait: 10)
-          article_id = create(:'ticket/article', ticket: ticket, body: "#{SecureRandom.uuid} #{"lorem ipsum\n" * 200}")
-          expect(page).to have_css('div.tasks a.is-modified', wait: 30)
+        end
 
-          visit "ticket/zoom/#{ticket.id}"
-          within :active_content do
-            expect(find("div#article-content-#{article_id.id}")).to have_text('See more')
-          end
+        # create a new article
+        article_id = create(:'ticket/article', ticket: ticket, body: "#{SecureRandom.uuid} #{"lorem ipsum\n" * 200}")
+
+        wait(30).until { has_css?('div.tasks a.is-modified') }
+
+        visit "ticket/zoom/#{ticket.id}"
+
+        within :active_content do
+          expect(find("div#article-content-#{article_id.id}")).to have_text('See more')
         end
       end
     end
@@ -1658,6 +1666,20 @@ RSpec.describe 'Ticket zoom', type: :system do
     end
   end
 
+  describe 'Core Workflow' do
+    include_examples 'core workflow' do
+      let(:ticket) { create(:ticket, group: Group.find_by(name: 'Users')) }
+      let(:object_name) { 'Ticket' }
+      let(:before_it) do
+        lambda {
+          ensure_websocket(check_if_pinged: false) do
+            visit "#ticket/zoom/#{ticket.id}"
+          end
+        }
+      end
+    end
+  end
+
   context 'Sidebar - Open & Closed Tickets', searchindex: true, authenticated_as: :authenticate do
     let(:customer) { create(:customer, :with_org) }
     let(:ticket_open) { create(:ticket, group: Group.find_by(name: 'Users'), customer: customer, title: SecureRandom.uuid) }
@@ -1703,6 +1725,184 @@ RSpec.describe 'Ticket zoom', type: :system do
 
         click '.js-showMoreMembers'
         expect(page).to have_text(members[10].fullname)
+      end
+    end
+  end
+
+  describe 'merging', authenticated_as: :user do
+    before do
+      merged_into_trigger && received_merge_trigger && update_trigger
+
+      visit "ticket/zoom/#{ticket.id}"
+      visit "ticket/zoom/#{target_ticket.id}"
+
+      ensure_websocket do
+        visit 'dashboard'
+      end
+    end
+
+    let(:merged_into_trigger)    { create(:trigger, :conditionable, condition_ticket_action: :merged_into) }
+    let(:received_merge_trigger) { create(:trigger, :conditionable, condition_ticket_action: :received_merge) }
+    let(:update_trigger)         { create(:trigger, :conditionable, condition_ticket_action: :update) }
+
+    let(:ticket)                 { create(:ticket) }
+    let(:target_ticket)          { create(:ticket) }
+
+    let(:user)                   { create(:agent, :preferencable, notification_group_ids: [ticket, target_ticket].map(&:group_id), groups: [ticket, target_ticket].map(&:group)) }
+
+    context 'when merging ticket' do
+      before do
+        ticket.merge_to(ticket_id: target_ticket.id, user_id: 1)
+      end
+
+      it 'pulses source ticket' do
+        expect(page).to have_css("#navigation a.is-modified[data-key=\"Ticket-#{ticket.id}\"]")
+      end
+
+      it 'pulses target ticket' do
+        expect(page).to have_css("#navigation a.is-modified[data-key=\"Ticket-#{target_ticket.id}\"]")
+      end
+    end
+
+    context 'when merging and looking at online notifications', :performs_jobs do
+      before do
+        perform_enqueued_jobs do
+          ticket.merge_to(ticket_id: target_ticket.id, user_id: 1)
+        end
+
+        find('.js-toggleNotifications').click
+      end
+
+      it 'shows online notification for source ticket' do
+        expect(page).to have_text("Ticket #{ticket.title} was merged into another ticket")
+      end
+
+      it 'shows online notification for target ticket' do
+        expect(page).to have_text("Another ticket was merged into ticket #{ticket.title}")
+      end
+    end
+  end
+
+  describe 'Tab behaviour - Define default "stay on tab" / "close tab" behavior #257', authenticated_as: :authenticate do
+    def authenticate
+      Setting.set('ticket_secondary_action', 'closeTabOnTicketClose')
+      true
+    end
+
+    let!(:ticket) { create(:ticket, group: Group.find_by(name: 'Users')) }
+
+    before do
+      visit "ticket/zoom/#{ticket.id}"
+    end
+
+    it 'does show the default of the system' do
+      expect(page).to have_text('Close tab on ticket close')
+    end
+
+    it 'does save state for the user preferences' do
+      click '.js-attributeBar .dropup div'
+      click 'span[data-type=stayOnTab]'
+      refresh
+      expect(page).to have_text('Stay on tab')
+      expect(User.find_by(email: 'admin@example.com').preferences[:secondaryAction]).to eq('stayOnTab')
+    end
+
+    context 'Tab behaviour - Close tab on ticket close' do
+      it 'does not close the tab without any action' do
+        click '.js-submit'
+        expect(current_url).to include('ticket/zoom')
+      end
+
+      it 'does close the tab on ticket close' do
+        select 'closed', from: 'State'
+        click '.js-submit'
+        expect(current_url).not_to include('ticket/zoom')
+      end
+    end
+
+    context 'Tab behaviour - Stay on tab' do
+      def authenticate
+        Setting.set('ticket_secondary_action', 'stayOnTab')
+        true
+      end
+
+      it 'does not close the tab without any action' do
+        click '.js-submit'
+        expect(current_url).to include('ticket/zoom')
+      end
+
+      it 'does not close the tab on ticket close' do
+        select 'closed', from: 'State'
+        click '.js-submit'
+        expect(current_url).to include('ticket/zoom')
+      end
+    end
+
+    context 'Tab behaviour - Close tab' do
+      def authenticate
+        Setting.set('ticket_secondary_action', 'closeTab')
+        true
+      end
+
+      it 'does close the tab without any action' do
+        click '.js-submit'
+        expect(current_url).not_to include('ticket/zoom')
+      end
+
+      it 'does close the tab on ticket close' do
+        select 'closed', from: 'State'
+        click '.js-submit'
+        expect(current_url).not_to include('ticket/zoom')
+      end
+    end
+
+    context 'Tab behaviour - Next in overview' do
+      let(:ticket1) { create(:ticket, title: SecureRandom.uuid, group: Group.find_by(name: 'Users')) }
+      let(:ticket2) { create(:ticket, title: SecureRandom.uuid, group: Group.find_by(name: 'Users')) }
+      let(:ticket3) { create(:ticket, title: SecureRandom.uuid, group: Group.find_by(name: 'Users')) }
+
+      def authenticate
+        Setting.set('ticket_secondary_action', 'closeNextInOverview')
+        ticket1
+        ticket2
+        ticket3
+        true
+      end
+
+      before do
+        visit 'ticket/view/all_open'
+      end
+
+      it 'does change the tab without any action' do
+        click_on ticket1.title
+        expect(current_url).to include("ticket/zoom/#{ticket1.id}")
+        click '.js-submit'
+        expect(current_url).to include("ticket/zoom/#{ticket2.id}")
+        click '.js-submit'
+        expect(current_url).to include("ticket/zoom/#{ticket3.id}")
+      end
+
+      it 'does show default stay on tab if secondary action is not given' do
+        click_on ticket1.title
+        refresh
+        expect(page).to have_text('Stay on tab')
+      end
+    end
+
+    context 'On ticket switch' do
+      let(:ticket1) { create(:ticket, title: SecureRandom.uuid, group: Group.find_by(name: 'Users')) }
+      let(:ticket2) { create(:ticket, title: SecureRandom.uuid, group: Group.find_by(name: 'Users')) }
+
+      before do
+        visit "ticket/zoom/#{ticket1.id}"
+        visit "ticket/zoom/#{ticket2.id}"
+      end
+
+      it 'does setup the last behaviour' do
+        click '.js-attributeBar .dropup div'
+        click 'span[data-type=stayOnTab]'
+        visit "ticket/zoom/#{ticket1.id}"
+        expect(page).to have_text('Stay on tab')
       end
     end
   end

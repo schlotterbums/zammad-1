@@ -6,7 +6,7 @@ class AgentTicketCreateResetCustomerSelectionTest < TestCase
   def test_clear_customer
     @browser = browser_instance
     login(
-      username: 'master@example.com',
+      username: 'admin@example.com',
       password: 'test',
       url:      browser_url,
     )
@@ -90,7 +90,7 @@ class AgentTicketCreateResetCustomerSelectionTest < TestCase
   def test_clear_customer_use_email
     @browser = browser_instance
     login(
-      username: 'master@example.com',
+      username: 'admin@example.com',
       password: 'test',
       url:      browser_url,
     )
@@ -192,7 +192,7 @@ class AgentTicketCreateResetCustomerSelectionTest < TestCase
 
     set(
       css:   '.content.active .modal input[name="customer_id_completion"]',
-      value: 'master',
+      value: 'admin',
     )
     click(css: '.content.active .modal .js-submit')
 
@@ -202,11 +202,11 @@ class AgentTicketCreateResetCustomerSelectionTest < TestCase
 
     set(
       css:   '.content.active .modal input[name="customer_id_completion"]',
-      value: 'master',
+      value: 'admin',
     )
     watch_for(
       css:     '.content.active .modal .js-recipientDropdown .recipientList.is-shown',
-      value:   'Master',
+      value:   'Admin',
       timeout: 3,
     )
     sendkey(value: :enter)
@@ -227,11 +227,11 @@ class AgentTicketCreateResetCustomerSelectionTest < TestCase
 
     set(
       css:   '.content.active .modal input[name="customer_id_completion"]',
-      value: 'master',
+      value: 'admin',
     )
     watch_for(
       css:     '.content.active .modal .js-recipientDropdown .recipientList.is-shown',
-      value:   'Master',
+      value:   'Admin',
       timeout: 3,
     )
     sendkey(value: :enter)
@@ -242,7 +242,7 @@ class AgentTicketCreateResetCustomerSelectionTest < TestCase
 
     watch_for(
       css:   '.content.active .tabsSidebar .sidebar[data-tab="customer"]',
-      value: 'master@example.com',
+      value: 'admin@example.com',
     )
 
     # cleanup

@@ -432,7 +432,19 @@ class App.TicketZoom extends App.Controller
 
     @scrollHeaderPos = scroll
 
+  pendingTimeReminderReached: =>
+    App.TaskManager.touch(@taskKey)
+
+  setPendingTimeReminderDelay: =>
+    stateType = App.TicketStateType.find @ticket?.state?.state_type_id
+    return if stateType?.name != 'pending reminder'
+
+    delay = new Date(@ticket.pending_time) - new Date()
+
+    @delay @pendingTimeReminderReached, delay, 'pendingTimeReminderDelay'
+
   render: (local) =>
+    @setPendingTimeReminderDelay()
 
     # update taskbar with new meta data
     App.TaskManager.touch(@taskKey)
@@ -856,7 +868,8 @@ class App.TicketZoom extends App.Controller
 
     # validate ticket by model
     errors = ticket.validate(
-      screen: 'edit'
+      controllerForm: @sidebarWidget?.get('100-TicketEdit')?.edit?.controllerFormSidebarTicket
+      target: e.target
     )
     if errors
       @log 'error', 'update', errors
@@ -965,8 +978,14 @@ class App.TicketZoom extends App.Controller
           @openTicketInOverview(nextTicket)
           App.Event.trigger('overview:fetch')
           return
-
-        if taskAction is 'closeTab' || taskAction is 'next_task'
+        else if taskAction is 'closeTabOnTicketClose' || taskAction is 'next_task_on_close'
+          state_type_id = App.TicketState.find(ticket.state_id).state_type_id
+          state_type    = App.TicketStateType.find(state_type_id).name
+          if state_type is 'closed'
+            App.Event.trigger('overview:fetch')
+            @taskCloseTicket(true)
+            return
+        else if taskAction is 'closeTab' || taskAction is 'next_task'
           App.Event.trigger('overview:fetch')
           @taskCloseTicket(true)
           return

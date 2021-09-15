@@ -368,7 +368,16 @@
           nnode.innerHTML = string
     }
     else {
-      document.execCommand('insertHTML', false, string)
+      var sel = rangy.getSelection();
+      if (!sel.rangeCount) return
+
+      var range = sel.getRangeAt(0);
+      range.collapse(false);
+      $('<div>').append(string).contents().each(function() {
+        range.insertNode($(this).get(0));
+        range.collapseAfter($(this).get(0));
+      })
+      sel.setSingleRange(range);
     }
   }
 
@@ -391,26 +400,10 @@
       start = 0
     }
 
-    // for chrome, remove also leading space, add it later - otherwice space will be tropped
-    if (start) {
-      clone.setStart(range.startContainer, start-1)
-      clone.setEnd(range.startContainer, start)
-      var spacerChar = clone.toString()
-      if (spacerChar === ' ') {
-        start = start - 1
-      }
-    }
     //this.log('CUT FOR', string, "-"+clone.toString()+"-", start, range.startOffset)
     clone.setStart(range.startContainer, start)
     clone.setEnd(range.startContainer, range.startOffset)
     clone.deleteContents()
-
-    // for chrome, insert space again
-    if (start) {
-      if (spacerChar === ' ') {
-        this.paste('&nbsp;')
-      }
-    }
   }
 
   Plugin.prototype.onMouseEnter = function(event) {

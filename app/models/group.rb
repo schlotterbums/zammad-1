@@ -4,10 +4,11 @@ class Group < ApplicationModel
   include CanBeImported
   include HasActivityStreamLog
   include ChecksClientNotification
+  include ChecksCoreWorkflow
   include ChecksHtmlSanitized
   include ChecksLatestChangeObserved
   include HasHistory
-  include HasObjectManagerAttributesValidation
+  include HasObjectManagerAttributes
   include HasCollectionUpdate
   include HasTicketCreateScreenImpact
   include HasSearchIndexBackend

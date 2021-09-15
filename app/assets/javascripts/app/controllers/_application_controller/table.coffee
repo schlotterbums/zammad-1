@@ -111,8 +111,9 @@ class App.ControllerTable extends App.Controller
   groupBy:            undefined
   groupDirection:     undefined
 
-  shownPerPage: 150
-  shownPage: 0
+  pagerEnabled: true
+  pagerItemsPerPage: 150
+  pagerShownPage: 0
 
   destroy: false
   customActions: []
@@ -197,6 +198,8 @@ class App.ControllerTable extends App.Controller
     App.QueueManager.run('tableRender')
 
   renderPager: (el, find = false) =>
+    return if !@pagerEnabled
+
     if @pagerAjax
       @renderPagerAjax(el, find)
     else
@@ -220,7 +223,7 @@ class App.ControllerTable extends App.Controller
       el.filter('.js-pager').html(pager)
 
   renderPagerStatic: (el, find = false) =>
-    pages = parseInt(((@objects.length - 1)  / @shownPerPage))
+    pages = parseInt(((@objects.length - 1)  / @pagerItemsPerPage))
     if pages < 1
       if find
         el.find('.js-pager').html('')
@@ -228,7 +231,7 @@ class App.ControllerTable extends App.Controller
         el.filter('.js-pager').html('')
       return
     pager = App.view('generic/table_pager')(
-      page:  @shownPage
+      page:  @pagerShownPage
       pages: pages
     )
     if find
@@ -500,25 +503,34 @@ class App.ControllerTable extends App.Controller
     groupLast = ''
     groupLastName = ''
     tableBody = []
-    objectsToShow = @objectsOfPage(@shownPage)
-    for object in objectsToShow
-      objectActions = []
+    objectsToShow = @objectsOfPage(@pagerShownPage)
+    if @groupBy
+      # group by raw (and not printable) value so dates work also
+      objectsGrouped = _.groupBy(objectsToShow, (object) => object[@groupBy])
+    else
+      objectsGrouped = { '': objectsToShow }
 
-      if object
-        position++
-        if @groupBy
-          groupByName = @groupObjectName(object, @groupBy)
-          if groupLastName isnt groupByName
-            groupLastName = groupByName
-            tableBody.push @renderTableGroupByRow(object, position, groupByName)
-        for action in @actions
-          # Check if the available key is used, it can be a Boolean or a function which should be called.
-          if !action.available? || action.available == true
-            objectActions.push action
-          else if typeof action.available is 'function' && action.available(object) == true
-            objectActions.push action
+    for groupValue in Object.keys(objectsGrouped).sort()
+      groupObjects = objectsGrouped[groupValue]
 
-        tableBody.push @renderTableRow(object, position, objectActions)
+      for object in groupObjects
+        objectActions = []
+
+        if object
+          position++
+          if @groupBy
+            groupByName = @groupObjectName(object, @groupBy)
+            if groupLastName isnt groupByName
+              groupLastName = groupByName
+              tableBody.push @renderTableGroupByRow(object, position, groupByName)
+          for action in @actions
+            # Check if the available key is used, it can be a Boolean or a function which should be called.
+            if !action.available? || action.available == true
+              objectActions.push action
+            else if typeof action.available is 'function' && action.available(object) == true
+              objectActions.push action
+
+          tableBody.push @renderTableRow(object, position, objectActions)
     tableBody
 
   renderTableGroupByRow: (object, position, groupByName) =>
@@ -663,13 +675,17 @@ class App.ControllerTable extends App.Controller
     ['new headers', @headers]
 
   setMaxPage: =>
-    pages = parseInt(((@objects.length - 1)  / @shownPerPage))
-    if parseInt(@shownPage) > pages
-      @shownPage = pages
+    return if !@pagerEnabled
+
+    pages = parseInt(((@objects.length - 1)  / @pagerItemsPerPage))
+    if parseInt(@pagerShownPage) > pages
+      @pagerShownPage = pages
 
   objectsOfPage: (page = 0) =>
+    return @objects if !@pagerEnabled
+
     page = parseInt(page)
-    @objects.slice(page * @shownPerPage, (page + 1) * @shownPerPage)
+    @objects.slice(page * @pagerItemsPerPage, (page + 1) * @pagerItemsPerPage)
 
   paginate: (e) =>
     e.stopPropagation()
@@ -678,7 +694,7 @@ class App.ControllerTable extends App.Controller
       @navigate "#{@pagerBaseUrl}#{(parseInt(page) + 1)}"
     else
       render = =>
-        @shownPage = page
+        @pagerShownPage = page
         @renderTableFull()
       App.QueueManager.add('tableRender', render)
       App.QueueManager.run('tableRender')

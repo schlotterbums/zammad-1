@@ -3,7 +3,7 @@
 module ZammadAuthenticatedAsHelper
   # parse authenticated_as params for request and system test helpers
   #
-  # @param input [Any] any to parse, see bellow for options
+  # @param input [Any] any to parse, see below for options
   # @param return_type [Symbol] :credentials or :user
   def authenticated_as_get_user(input, return_type:)
     case input
@@ -42,7 +42,7 @@ module ZammadAuthenticatedAsHelper
       parse_meta_user(input)
     when true
       {
-        username: 'master@example.com',
+        username: 'admin@example.com',
         password: 'test',
       }
     end

@@ -125,11 +125,13 @@ class Transaction::Notification
           identifier = user.login
         end
 
+        already_notified_cutoff = Time.use_zone(Setting.get('timezone_default').presence || 'UTC') { Time.current.beginning_of_day }
+
         already_notified = History.where(
           history_type_id:   History.type_lookup('notification').id,
           history_object_id: History.object_lookup('Ticket').id,
           o_id:              ticket.id
-        ).where('created_at > ?', Time.zone.now.beginning_of_day).exists?(['value_to LIKE ?', "%#{identifier}(#{@item[:type]}:%"])
+        ).where('created_at > ?', already_notified_cutoff).exists?(['value_to LIKE ?', "%#{identifier}(#{@item[:type]}:%"])
 
         next if already_notified
       end
@@ -182,21 +184,24 @@ class Transaction::Notification
 
       # get user based notification template
       # if create, send create message / block update messages
-      template = nil
-      case @item[:type]
-      when 'create'
-        template = 'ticket_create'
-      when 'update'
-        template = 'ticket_update'
-      when 'reminder_reached'
-        template = 'ticket_reminder_reached'
-      when 'escalation'
-        template = 'ticket_escalation'
-      when 'escalation_warning'
-        template = 'ticket_escalation_warning'
-      else
-        raise "unknown type for notification #{@item[:type]}"
-      end
+      template = case @item[:type]
+                 when 'create'
+                   'ticket_create'
+                 when 'update'
+                   'ticket_update'
+                 when 'reminder_reached'
+                   'ticket_reminder_reached'
+                 when 'escalation'
+                   'ticket_escalation'
+                 when 'escalation_warning'
+                   'ticket_escalation_warning'
+                 when 'update.merged_into'
+                   'ticket_update_merged_into'
+                 when 'update.received_merge'
+                   'ticket_update_received_merge'
+                 else
+                   raise "unknown type for notification #{@item[:type]}"
+                 end
 
       current_user = User.lookup(id: @item[:user_id])
       if !current_user

@@ -3835,6 +3835,15 @@ footer {
     min-width: $minWidth - $sidebarWidth;
   }
 
+  &.no-sidebar {
+    @include bidi-style(left, $navigationWidth, right, 0);
+    min-width: $minWidth - $navigationWidth;
+
+    @include small-desktop {
+      min-width: $minWidth;
+    }
+  }
+
   @include phone {
     @include bidi-style(left, $mobileNavigationWidth, right, 0);
     min-width: 0;
@@ -5167,6 +5176,12 @@ footer {
 
   .btn-list {
     margin-bottom: 5px;
+  }
+
+  &-button {
+    .sidebar-block-header + &.text-muted {
+      margin-top: 3px;
+    }
   }
 }
 
@@ -6608,8 +6623,7 @@ footer {
       }
     }
 
-    .attachments .icon-paperclip,
-    .attachments .icon-overviews {
+    .attachments > .icon:first-child {
       position: absolute;
       left: 33px;
       top: 27px;
@@ -9916,7 +9930,7 @@ label + .wizard-buttonList {
 
 output {
   border-bottom: 1px solid hsl(200,71%,59%);
-  margin: 14px 0 0;
+  margin: 14px 0 19px;
   display: inline-block;
   padding: 10px 12px 8px;
   background: hsl(201,62%,93%);
@@ -12929,6 +12943,7 @@ span.is-disabled {
   }
 
   &-attachments,
+  &-tags,
   &-linked-tickets {
     margin: 0 -30px;
 
@@ -12939,6 +12954,25 @@ span.is-disabled {
 
   .tasks {
     @include bidi-style(margin-left, 7px, margin-right, 0);
+  }
+
+  &-tags--container {
+    padding: 6px 5px 11px;
+    display: flex;
+    flex-wrap: wrap;
+    
+    .tag {
+      margin: 2px;
+      display: inline-block;
+      background: #0F94D6;
+      color: white;
+      border-radius: 999px;
+      padding: 2px 12px 1px;
+
+      &:hover {
+        background: hsl(200deg, 87%, 34%);
+      }
+    }
   }
 
   &-nav {

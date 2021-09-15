@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 
 # core - base
 ruby '2.7.4'
-gem 'rails', '6.0.4'
+gem 'rails', '~> 6.0'
 
 # core - rails additions
 gem 'activerecord-import'
@@ -116,6 +116,9 @@ gem 'diffy'
 # feature - excel output
 gem 'writeexcel', require: false
 
+# feature - csv import/export
+gem 'csv', require: false
+
 # feature - device logging
 gem 'browser'
 
@@ -127,6 +130,7 @@ gem 'icalendar-recurrence'
 gem 'telephone_number'
 
 # feature - SMS
+gem 'messagebird-rest'
 gem 'twilio-ruby', require: false
 
 # feature - ordering
@@ -209,7 +213,7 @@ group :development, :test do
   gem 'webmock'
 
   # record and replay TCP/HTTP transactions
-  gem 'tcr', git: 'https://github.com/zammad-deps/tcr'
+  gem 'tcr'
   gem 'vcr'
 
   # handle deprecations in core and addons

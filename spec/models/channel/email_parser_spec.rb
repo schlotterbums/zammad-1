@@ -902,6 +902,28 @@ RSpec.describe Channel::EmailParser, type: :model do
           expect { described_class.new.process({}, raw_mail) }
             .to change { ticket.reload.state.name }.to('open')
         end
+
+        context 'when group has follow_up_assignment true' do
+          let(:group) { create(:group, follow_up_assignment: true) }
+          let(:agent) { create(:agent, groups: [group]) }
+          let(:ticket) { create(:ticket, state_name: 'closed', owner: agent, group: group) }
+
+          it 'does not change the owner' do
+            expect { described_class.new.process({}, raw_mail) }
+              .not_to change { ticket.reload.owner.login }
+          end
+        end
+
+        context 'when group has follow_up_assignment false' do
+          let(:group) { create(:group, follow_up_assignment: false) }
+          let(:agent) { create(:agent, groups: [group]) }
+          let(:ticket) { create(:ticket, state_name: 'closed', owner: agent, group: group) }
+
+          it 'does change the owner' do
+            expect { described_class.new.process({}, raw_mail) }
+              .to change { ticket.reload.owner.login }.to eq(User.find(1).login)
+          end
+        end
       end
     end
 
@@ -1150,6 +1172,50 @@ RSpec.describe Channel::EmailParser, type: :model do
           create(:external_sync,
                  source:    'ServiceNow-example@service-now.com',
                  source_id: 'INC678439',
+                 object:    'Ticket',
+                 o_id:      ticket.id,)
+        end
+
+        it 'adds Article to existing Ticket' do
+          expect { described_class.new.process({}, raw_mail) }.to change { ticket.reload.articles.count }
+        end
+
+        context 'key insensitive sender address' do
+
+          let(:raw_mail) { super().gsub('example@service-now.com', 'Example@Service-Now.com') }
+
+          it 'adds Article to existing Ticket' do
+            expect { described_class.new.process({}, raw_mail) }.to change { ticket.reload.articles.count }
+          end
+        end
+      end
+    end
+
+    describe 'Jira handling' do
+
+      context 'new Ticket' do
+        let(:mail_file) { Rails.root.join('test/data/mail/mail103.box') }
+
+        it 'creates an ExternalSync reference' do
+          described_class.new.process({}, raw_mail)
+
+          expect(ExternalSync.last).to have_attributes(
+            source:    'Jira-example@jira.com',
+            source_id: 'SYS-422',
+            object:    'Ticket',
+            o_id:      Ticket.last.id,
+          )
+        end
+      end
+
+      context 'follow up' do
+
+        let(:mail_file) { Rails.root.join('test/data/mail/mail104.box') }
+        let(:ticket) { create(:ticket) }
+        let!(:external_sync) do
+          create(:external_sync,
+                 source:    'Jira-example@jira.com',
+                 source_id: 'SYS-422',
                  object:    'Ticket',
                  o_id:      ticket.id,)
         end

@@ -3,6 +3,8 @@
 module ApplicationController::RendersModels
   extend ActiveSupport::Concern
 
+  include CanPaginate
+
   private
 
   # model helper
@@ -10,6 +12,9 @@ module ApplicationController::RendersModels
 
     clean_params = object.association_name_to_id_convert(params)
     clean_params = object.param_cleanup(clean_params, true)
+    if object.included_modules.include?(ChecksCoreWorkflow)
+      clean_params[:screen] = 'create'
+    end
 
     # create object
     generic_object = object.new(clean_params)
@@ -44,6 +49,9 @@ module ApplicationController::RendersModels
 
     clean_params = object.association_name_to_id_convert(params)
     clean_params = object.param_cleanup(clean_params, true)
+    if object.included_modules.include?(ChecksCoreWorkflow)
+      clean_params[:screen] = 'update'
+    end
 
     generic_object.with_lock do
 
@@ -103,16 +111,14 @@ module ApplicationController::RendersModels
   end
 
   def model_index_render(object, params)
-    page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 500).to_i
-    offset = (page - 1) * per_page
+    paginate_with(default: 500)
 
     sql_helper = ::SqlHelper.new(object: object)
     sort_by    = sql_helper.get_sort_by(params, 'id')
     order_by   = sql_helper.get_order_by(params, 'ASC')
     order_sql  = sql_helper.get_order(sort_by, order_by)
 
-    generic_objects = object.order(Arel.sql(order_sql)).offset(offset).limit(per_page)
+    generic_objects = object.order(Arel.sql(order_sql)).offset(pagination.offset).limit(pagination.limit)
 
     if response_expand?
       list = []
