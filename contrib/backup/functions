@@ -214,8 +214,16 @@ function restore_zammad () {
 
     create_pgpassfile
 
-    zcat < ${BACKUP_DIR}/${RESTORE_DB_DATE}_zammad_db.${DB_FILE_EXT}.gz \
+    
+    if zcat < ${BACKUP_DIR}/${RESTORE_DB_DATE}_zammad_db.${DB_FILE_EXT}.gz \
       | psql ${DB_HOST:+--host $DB_HOST} ${DB_PORT:+--port $DB_PORT} ${DB_USER:+--username $DB_USER} --dbname ${DB_NAME}
+
+    	echo "Restoring of DB with peer authentication as current user succeeded."
+    else:
+        echo "Restoring of DB failed with PostgreSQL peer authentication as current user, trying as user zammad now"
+	    su zammad -c "zcat < ${BACKUP_DIR}/${RESTORE_DB_DATE}_zammad_db.${DB_FILE_EXT}.gz \
+           | psql ${DB_HOST:+--host $DB_HOST} ${DB_PORT:+--port $DB_PORT} ${DB_USER:+--username $DB_USER} --dbname ${DB_NAME}"
+    fi
 
   elif [ "${DB_ADAPTER}" == "mysql2" ]; then
     echo "# Restoring MySQL DB"
